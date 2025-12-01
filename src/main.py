@@ -4,12 +4,27 @@
 from collections import deque, namedtuple
 import pyxel
 import os
-import threading
+import sys
 
-from snake_env import SnakeEnvironment, ACTION_TO_DIRECTION, UP, DOWN, LEFT, RIGHT
-from q_learning_agent import QLearningAgent
-from trainer import Trainer
-from visualizer import Visualizer
+# Détecter si on est dans un environnement web (Pyodide)
+IS_WEB = sys.platform == "emscripten"
+
+# Importer les modules RL uniquement si on n'est pas sur le web
+if not IS_WEB:
+    import threading
+    from snake_env import SnakeEnvironment, ACTION_TO_DIRECTION, UP, DOWN, LEFT, RIGHT
+    from q_learning_agent import QLearningAgent
+    from trainer import Trainer
+    from visualizer import Visualizer
+else:
+    # Sur le web, simuler les constantes nécessaires
+    UP, DOWN, LEFT, RIGHT = 0, 1, 2, 3
+    ACTION_TO_DIRECTION = {
+        UP: namedtuple("Point", ["x", "y"])(0, -1),
+        DOWN: namedtuple("Point", ["x", "y"])(0, 1),
+        LEFT: namedtuple("Point", ["x", "y"])(-1, 0),
+        RIGHT: namedtuple("Point", ["x", "y"])(1, 0)
+    }
 
 Point = namedtuple("Point", ["x", "y"])
 
@@ -47,8 +62,12 @@ class SnakeRL:
         # État de l'application
         self.app_state = STATE_MENU
         self.menu_selection = 0
-        self.menu_options = ["JOUER (Humain)", "TRAINING IA", "RÉSULTATS", "DEMO IA", "QUITTER"]
         
+        # Sur le web, désactiver les fonctionnalités RL
+        if IS_WEB:
+            self.menu_options = ["JOUER (Humain)", "QUITTER"]
+        else:
+            self.menu_options = ["JOUER (Humain)", "TRAINING IA", "RÉSULTATS", "DEMO IA", "QUITTER"]
         # Configuration de training
         self.config = {
             'n_episodes': 1000,
@@ -63,7 +82,7 @@ class SnakeRL:
         self.config_params = ['n_episodes', 'max_steps', 'learning_rate', 
                               'discount_factor', 'epsilon', 'epsilon_decay', 'epsilon_min']
         
-        # Environnement et agent RL
+        # Environnement et agent RL (uniquement si pas sur le web)
         self.env = None
         self.agent = None
         self.trainer = None
@@ -124,20 +143,29 @@ class SnakeRL:
         elif pyxel.btnp(pyxel.KEY_DOWN):
             self.menu_selection = (self.menu_selection + 1) % len(self.menu_options)
         elif pyxel.btnp(pyxel.KEY_RETURN) or pyxel.btnp(pyxel.KEY_SPACE):
-            if self.menu_selection == 0:  # Jouer
-                self.reset_game()
-                self.app_state = STATE_PLAY
-            elif self.menu_selection == 1:  # Training
-                self.app_state = STATE_TRAINING_CONFIG
-            elif self.menu_selection == 2:  # Résultats
-                if self.trainer and self.trainer.is_trained:
-                    self.app_state = STATE_RESULTS
-            elif self.menu_selection == 3:  # Démo
-                if self.agent and self.trainer and self.trainer.is_trained:
-                    self.start_demo()
-                    self.app_state = STATE_DEMO
-            elif self.menu_selection == 4:  # Quitter
-                pyxel.quit()
+            if IS_WEB:
+                # Menu simplifié pour le web
+                if self.menu_selection == 0:  # Jouer
+                    self.reset_game()
+                    self.app_state = STATE_PLAY
+                elif self.menu_selection == 1:  # Quitter
+                    pyxel.quit()
+            else:
+                # Menu complet pour desktop
+                if self.menu_selection == 0:  # Jouer
+                    self.reset_game()
+                    self.app_state = STATE_PLAY
+                elif self.menu_selection == 1:  # Training
+                    self.app_state = STATE_TRAINING_CONFIG
+                elif self.menu_selection == 2:  # Résultats
+                    if self.trainer and self.trainer.is_trained:
+                        self.app_state = STATE_RESULTS
+                elif self.menu_selection == 3:  # Démo
+                    if self.agent and self.trainer and self.trainer.is_trained:
+                        self.start_demo()
+                        self.app_state = STATE_DEMO
+                elif self.menu_selection == 4:  # Quitter
+                    pyxel.quit()
     
     def update_play(self):
         """Mise à jour du mode jeu humain."""
@@ -233,6 +261,9 @@ class SnakeRL:
     
     def start_training(self):
         """Lance l'entraînement dans un thread séparé."""
+        if IS_WEB:
+            return  # Pas de training sur le web
+        
         self.training_done = False
         self.training_progress = "Initialisation..."
         
@@ -335,9 +366,9 @@ class SnakeRL:
         pyxel.cls(COL_MENU_BG)
         
         # Titre
-        title = "SNAKE RL"
+        title = "SNAKE RL" if not IS_WEB else "SNAKE"
         self.draw_centered_text(title, 10, COL_TEXT)
-        subtitle = "Q-Learning"
+        subtitle = "Q-Learning" if not IS_WEB else "Web Version"
         self.draw_centered_text(subtitle, 18, COL_TEXT)
         
         # Options
@@ -345,14 +376,15 @@ class SnakeRL:
             y = 30 + i * 8
             color = COL_MENU_SELECTED if i == self.menu_selection else COL_TEXT
             
-            # Indicateur de disponibilité
+            # Indicateur de disponibilité (uniquement pour desktop)
             available = True
-            if i == 2 and (not self.trainer or not self.trainer.is_trained):
-                available = False
-                option += " (non dispo)"
-            elif i == 3 and (not self.agent or not self.trainer or not self.trainer.is_trained):
-                available = False
-                option += " (non dispo)"
+            if not IS_WEB:
+                if i == 2 and (not self.trainer or not self.trainer.is_trained):
+                    available = False
+                    option += " (non dispo)"
+                elif i == 3 and (not self.agent or not self.trainer or not self.trainer.is_trained):
+                    available = False
+                    option += " (non dispo)"
             
             if not available:
                 color = 5  # Gris
