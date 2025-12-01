@@ -39,12 +39,16 @@ jobs:
             libsdl2-dev            # headers are optional but harmless
 
       - name: Set up Python
-        uses: actions/setup-python@v5   # ← v5 is current
+        uses: actions/setup-python@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
 
       - name: Install Pyxel CLI
         run: |
-          python -m pip install --upgrade pip
-          pip install pyxel
+          uv pip install --system pyxel
 
       - name: Build .pyxapp
         run: |
