@@ -1,0 +1,8 @@
+[project]
+name = "snake-machine-learning"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.12"
+dependencies = [
+    "pyxel>=2.5.10",
+]
