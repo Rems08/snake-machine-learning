@@ -46,13 +46,16 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Install Pyxel CLI
+      - name: Create virtual environment and install dependencies
         run: |
-          uv pip install --system pyxel
+          uv venv .venv
+          uv pip install pyxel
 
       - name: Build .pyxapp
         run: |
           mkdir -p dist
+          # Activer l'environnement virtuel et exécuter pyxel
+          source .venv/bin/activate
           # 1. Package the game → creates src.pyxapp
           pyxel package "${{ env.APP_DIR }}" \
                         "${{ env.APP_DIR }}/${{ env.STARTUP_SCRIPT }}"
@@ -62,6 +65,7 @@ jobs:
       - name: Convert to HTML
         working-directory: dist           # <-- change cwd
         run: |
+          source ../.venv/bin/activate
           pyxel app2html "${{ env.APP_NAME }}.pyxapp"   # creates game.html here
           mkdir -p ../${{ env.OUTPUT_DIR }}
           mv "${{ env.APP_NAME }}.html" ../${{ env.OUTPUT_DIR }}/index.html
