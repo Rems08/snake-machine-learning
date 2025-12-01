@@ -1,0 +1,92 @@
+name: Deploy Streamlit App
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        enable-cache: true
+    
+    - name: Install dependencies
+      run: |
+        uv sync
+    
+    - name: Test import modules
+      run: |
+        uv run python -c "from src.snake_environment import SnakeEnvironment; print('Environment OK')"
+        uv run python -c "from src.q_learning_agent import QLearningAgent; print('Agent OK')"
+        uv run python -c "from src.trainer import Trainer; print('Trainer OK')"
+    
+    - name: Run a quick training test
+      run: |
+        uv run python -c "from src.trainer import train_snake_agent; results = train_snake_agent(grid_size=5, max_steps=50, n_episodes=10, verbose=False); print('Training test completed')"
+  
+  build-docs:
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Copy docs template
+      run: |
+        mkdir -p docs
+        cp .github/docs-template/index.html docs/index.html || echo "No template found, creating default"
+    
+    - name: Create default documentation if template missing
+      run: |
+        if [ ! -f docs/index.html ]; then
+          cat > docs/index.html << 'HTMLEOF'
+        <!DOCTYPE html>
+        <html lang="fr">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Snake Q-Learning</title>
+            <style>
+                body { font-family: system-ui; max-width: 900px; margin: 50px auto; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+                .container { background: white; border-radius: 20px; padding: 40px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+                h1 { color: #667eea; text-align: center; }
+                .emoji { font-size: 4em; text-align: center; margin: 20px 0; }
+                a.button { display: block; width: fit-content; margin: 30px auto; padding: 15px 40px; background: #667eea; color: white; text-decoration: none; border-radius: 50px; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="emoji">🐍</div>
+                <h1>Snake Q-Learning</h1>
+                <p style="text-align: center;">Apprentissage par renforcement appliqué au jeu Snake</p>
+                <a href="https://github.com/Rems08/snake-machine-learning" class="button">Voir le code sur GitHub</a>
+            </div>
+        </body>
+        </html>
+        HTMLEOF
+        fi
+    
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v4
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./docs
+        cname: false

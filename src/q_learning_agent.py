@@ -1,75 +1,74 @@
-# Agent Q-Learning pour Snake
-# Implémentation de l'algorithme Q-Learning avec exploration epsilon-greedy
+"""
+Agent Q-Learning pour le jeu Snake.
+"""
 
-import random
 import pickle
-from typing import Dict, Tuple, Optional
+from typing import Tuple, Optional
 from collections import defaultdict
+import random
 
 
 class QLearningAgent:
-    """
-    Agent Q-Learning pour apprendre à jouer au Snake.
-    
-    Utilise une table Q (dictionnaire) pour stocker les valeurs Q(s, a).
-    Stratégie d'exploration: epsilon-greedy.
-    """
+    """Agent qui apprend à jouer à Snake avec Q-Learning."""
     
     def __init__(
         self,
         n_actions: int = 4,
-        learning_rate: float = 0.1,
-        discount_factor: float = 0.95,
+        alpha: float = 0.1,
+        gamma: float = 0.9,
         epsilon: float = 1.0,
+        epsilon_min: float = 0.01,
         epsilon_decay: float = 0.995,
-        epsilon_min: float = 0.01
+        seed: Optional[int] = None
     ):
         """
         Initialise l'agent Q-Learning.
         
         Args:
             n_actions: Nombre d'actions possibles
-            learning_rate: Taux d'apprentissage (alpha)
-            discount_factor: Facteur d'escompte (gamma)
-            epsilon: Probabilité d'exploration initiale
-            epsilon_decay: Facteur de décroissance d'epsilon
-            epsilon_min: Valeur minimale d'epsilon
+            alpha: Taux d'apprentissage (learning rate)
+            gamma: Facteur de discount pour les récompenses futures
+            epsilon: Taux d'exploration initial
+            epsilon_min: Taux d'exploration minimum
+            epsilon_decay: Facteur de décroissance de epsilon
+            seed: Graine pour la génération aléatoire
         """
         self.n_actions = n_actions
-        self.learning_rate = learning_rate
-        self.discount_factor = discount_factor
+        self.alpha = alpha
+        self.gamma = gamma
         self.epsilon = epsilon
-        self.epsilon_decay = epsilon_decay
         self.epsilon_min = epsilon_min
+        self.epsilon_decay = epsilon_decay
+        self.rng = random.Random(seed)
         
-        # Table Q : dictionnaire avec valeurs par défaut à 0
-        self.q_table: Dict[Tuple, Dict[int, float]] = defaultdict(lambda: {a: 0.0 for a in range(n_actions)})
+        # Table Q : Q[state][action] = valeur
+        self.q_table = defaultdict(lambda: [0.0] * n_actions)
         
-        # Statistiques
-        self.training_episodes = 0
+        # Métriques
+        self.total_updates = 0
     
-    def get_action(self, state: Tuple, training: bool = True) -> int:
+    def choose_action(self, state: Tuple, training: bool = True) -> int:
         """
-        Choisit une action selon la stratégie epsilon-greedy.
+        Choisit une action selon la politique epsilon-greedy.
         
         Args:
-            state: L'état actuel
-            training: Si True, utilise epsilon-greedy; sinon, utilise la politique greedy
+            state: État actuel
+            training: Si True, utilise epsilon-greedy, sinon prend la meilleure action
             
         Returns:
-            L'action choisie
+            Action choisie (0-3)
         """
         # Exploration : action aléatoire
-        if training and random.random() < self.epsilon:
-            return random.randint(0, self.n_actions - 1)
+        if training and self.rng.random() < self.epsilon:
+            return self.rng.randint(0, self.n_actions - 1)
         
-        # Exploitation : action avec la meilleure valeur Q
+        # Exploitation : meilleure action selon Q
         q_values = self.q_table[state]
-        max_q = max(q_values.values())
+        max_q = max(q_values)
         
-        # Si plusieurs actions ont la même valeur Q maximale, en choisir une au hasard
-        best_actions = [action for action, q in q_values.items() if q == max_q]
-        return random.choice(best_actions)
+        # Si plusieurs actions ont la même valeur max, en choisir une au hasard
+        best_actions = [i for i, q in enumerate(q_values) if q == max_q]
+        return self.rng.choice(best_actions)
     
     def update(
         self,
@@ -80,54 +79,52 @@ class QLearningAgent:
         done: bool
     ):
         """
-        Met à jour la valeur Q selon l'équation de Q-Learning.
+        Met à jour la table Q avec la règle de Q-Learning.
         
-        Q(s,a) ← Q(s,a) + α * [r + γ * max_a' Q(s',a') - Q(s,a)]
+        Q(s,a) ← Q(s,a) + α * [r + γ * max Q(s',a') - Q(s,a)]
         
         Args:
-            state: L'état actuel
-            action: L'action effectuée
-            reward: La récompense reçue
-            next_state: Le nouvel état
-            done: True si l'épisode est terminé
+            state: État actuel
+            action: Action effectuée
+            reward: Récompense reçue
+            next_state: Nouvel état
+            done: Episode terminé
         """
         current_q = self.q_table[state][action]
         
         if done:
-            # Si l'épisode est terminé, pas de future récompense
-            target_q = reward
+            # Si l'épisode est terminé, pas de valeur future
+            target = reward
         else:
-            # Meilleure action future
-            max_next_q = max(self.q_table[next_state].values())
-            target_q = reward + self.discount_factor * max_next_q
+            # Sinon, ajouter la valeur future maximale
+            max_next_q = max(self.q_table[next_state])
+            target = reward + self.gamma * max_next_q
         
-        # Mise à jour de Q
-        new_q = current_q + self.learning_rate * (target_q - current_q)
-        self.q_table[state][action] = new_q
+        # Mise à jour Q-Learning
+        self.q_table[state][action] = current_q + self.alpha * (target - current_q)
+        self.total_updates += 1
     
     def decay_epsilon(self):
-        """Décroît epsilon après chaque épisode."""
+        """Réduit le taux d'exploration."""
         self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
-        self.training_episodes += 1
     
     def save(self, filepath: str):
         """
-        Sauvegarde l'agent (Q-table et paramètres).
+        Sauvegarde l'agent (table Q et paramètres).
         
         Args:
             filepath: Chemin du fichier de sauvegarde
         """
         data = {
-            'q_table': dict(self.q_table),  # Convertir defaultdict en dict
-            'n_actions': self.n_actions,
-            'learning_rate': self.learning_rate,
-            'discount_factor': self.discount_factor,
+            'q_table': dict(self.q_table),
+            'alpha': self.alpha,
+            'gamma': self.gamma,
             'epsilon': self.epsilon,
-            'epsilon_decay': self.epsilon_decay,
             'epsilon_min': self.epsilon_min,
-            'training_episodes': self.training_episodes
+            'epsilon_decay': self.epsilon_decay,
+            'n_actions': self.n_actions,
+            'total_updates': self.total_updates
         }
-        
         with open(filepath, 'wb') as f:
             pickle.dump(data, f)
     
@@ -138,40 +135,29 @@ class QLearningAgent:
         Args:
             filepath: Chemin du fichier de sauvegarde
         """
-        try:
-            with open(filepath, 'rb') as f:
-                data = pickle.load(f)
-            
-            # Reconstruire la Q-table
-            self.q_table = defaultdict(lambda: {a: 0.0 for a in range(self.n_actions)})
-            for state, actions in data['q_table'].items():
-                self.q_table[state] = actions
-            
-            # Charger les paramètres
-            self.n_actions = data['n_actions']
-            self.learning_rate = data['learning_rate']
-            self.discount_factor = data['discount_factor']
-            self.epsilon = data['epsilon']
-            self.epsilon_decay = data['epsilon_decay']
-            self.epsilon_min = data['epsilon_min']
-            self.training_episodes = data['training_episodes']
-            
-            return True
-        except FileNotFoundError:
-            return False
+        with open(filepath, 'rb') as f:
+            data = pickle.load(f)
+        
+        self.q_table = defaultdict(lambda: [0.0] * self.n_actions, data['q_table'])
+        self.alpha = data['alpha']
+        self.gamma = data['gamma']
+        self.epsilon = data['epsilon']
+        self.epsilon_min = data['epsilon_min']
+        self.epsilon_decay = data['epsilon_decay']
+        self.n_actions = data['n_actions']
+        self.total_updates = data.get('total_updates', 0)
     
-    def get_q_table_size(self) -> int:
-        """Retourne le nombre d'entrées dans la Q-table."""
-        return len(self.q_table)
-    
-    def get_parameters(self) -> Dict:
-        """Retourne les paramètres de l'agent."""
+    def get_stats(self) -> dict:
+        """
+        Retourne des statistiques sur l'agent.
+        
+        Returns:
+            Dictionnaire de statistiques
+        """
         return {
-            'learning_rate': self.learning_rate,
-            'discount_factor': self.discount_factor,
             'epsilon': self.epsilon,
-            'epsilon_decay': self.epsilon_decay,
-            'epsilon_min': self.epsilon_min,
-            'training_episodes': self.training_episodes,
-            'q_table_size': self.get_q_table_size()
+            'q_table_size': len(self.q_table),
+            'total_updates': self.total_updates,
+            'alpha': self.alpha,
+            'gamma': self.gamma
         }
