@@ -1,8 +1,10 @@
 [project]
 name = "snake-machine-learning"
 version = "0.1.0"
-description = "Add your description here"
+description = "Snake game with Q-Learning reinforcement learning"
 requires-python = ">=3.12"
 dependencies = [
     "pyxel>=2.5.10",
+    "numpy>=1.24.0",
+    "matplotlib>=3.7.0",
 ]
