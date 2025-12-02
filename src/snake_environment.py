@@ -47,6 +47,7 @@ class SnakeEnvironment:
         
         # Métriques
         self.apples_eaten: int = 0
+        self.previous_distance: Optional[float] = None
         
     def reset(self) -> Tuple:
         """
@@ -68,6 +69,7 @@ class SnakeEnvironment:
         self.steps = 0
         self.done = False
         self.apples_eaten = 0
+        self.previous_distance = self._get_distance_to_apple()
         
         return self._get_state()
     
@@ -103,18 +105,18 @@ class SnakeEnvironment:
             new_head = (head_x + 1, head_y)
         
         # Vérifier les collisions
-        reward = -0.1  # Pénalité par défaut pour encourager l'efficacité
+        reward = 0  # Récompense de base
         
         # Collision avec le mur
         if not self._is_valid_position(new_head):
             self.done = True
-            reward = -10
+            reward = -100  # Pénalité forte pour mourir
             return self._get_state(), reward, self.done, self._get_info()
         
         # Collision avec le corps
         if new_head in self.snake[:-1]:  # Exclure la queue qui va bouger
             self.done = True
-            reward = -10
+            reward = -100  # Pénalité forte pour mourir
             return self._get_state(), reward, self.done, self._get_info()
         
         # Déplacer le serpent
@@ -122,13 +124,23 @@ class SnakeEnvironment:
         
         # Vérifier si le serpent mange la pomme
         if new_head == self.apple:
-            reward = 10
+            reward = 100  # Grosse récompense pour manger
             self.score += 10
             self.apples_eaten += 1
             self._spawn_apple()
+            self.previous_distance = self._get_distance_to_apple()
         else:
             # Retirer la queue si pas de pomme mangée
             self.snake.pop()
+            
+            # Récompense pour se rapprocher de la pomme
+            current_distance = self._get_distance_to_apple()
+            if self.previous_distance is not None:
+                if current_distance < self.previous_distance:
+                    reward = 1  # Petite récompense pour se rapprocher
+                else:
+                    reward = -1.5  # Pénalité pour s'éloigner
+            self.previous_distance = current_distance
         
         # Vérifier si le nombre maximum de pas est atteint
         if self.steps >= self.max_steps:
@@ -259,6 +271,14 @@ class SnakeEnvironment:
             Direction.LEFT: Direction.UP
         }
         return turns[direction]
+    
+    def _get_distance_to_apple(self) -> float:
+        """Calcule la distance Manhattan entre la tête et la pomme."""
+        if self.apple is None:
+            return 0.0
+        head_x, head_y = self.snake[0]
+        apple_x, apple_y = self.apple
+        return abs(head_x - apple_x) + abs(head_y - apple_y)
     
     def _get_info(self) -> dict:
         """Retourne des informations supplémentaires sur l'état actuel."""

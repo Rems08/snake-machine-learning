@@ -248,9 +248,9 @@ def main():
         
         with col2:
             st.subheader("Paramètres de l'agent")
-            n_episodes = st.slider("Nombre d'épisodes", 100, 5000, 1000, step=100)
-            alpha = st.slider("Alpha (α) - Taux d'apprentissage", 0.01, 1.0, 0.1, step=0.01)
-            gamma = st.slider("Gamma (γ) - Facteur de discount", 0.0, 1.0, 0.9, step=0.05)
+            n_episodes = st.slider("Nombre d'épisodes", 100, 100000, 1000, step=100)
+            alpha = st.slider("Alpha (α) - Taux d'apprentissage", 0.01, 1.0, 0.2, step=0.01)
+            gamma = st.slider("Gamma (γ) - Facteur de discount", 0.0, 1.0, 0.95, step=0.05)
             
         col3, col4 = st.columns(2)
         
@@ -262,7 +262,7 @@ def main():
         with col4:
             st.subheader(" ")
             st.write("")  # Espaceur
-            epsilon_decay = st.slider("Epsilon decay", 0.9, 0.999, 0.995, step=0.001)
+            epsilon_decay = st.slider("Epsilon decay", 0.9, 0.999, 0.998, step=0.001)
         
         st.markdown("---")
         

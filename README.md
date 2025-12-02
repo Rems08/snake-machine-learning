@@ -38,9 +38,11 @@ L'état est représenté par un tuple de 8 éléments :
 Le demi-tour immédiat est bloqué pour éviter les collisions instantanées.
 
 ### Récompenses
-- **+10** : Le serpent mange une pomme
-- **-10** : Le serpent meurt (collision avec mur ou corps)
-- **-0.1** : À chaque pas (encourage l'efficacité)
+
+- **+100** : Le serpent mange une pomme
+- **-100** : Le serpent meurt (collision avec mur ou corps)
+- **+1** : Le serpent se rapproche de la pomme
+- **-1.5** : Le serpent s'éloigne de la pomme
 
 ## 🚀 Installation
 
@@ -111,19 +113,22 @@ snake-machine-learning/
 ## 🧪 Paramètres recommandés
 
 Pour un bon apprentissage :
+
 - **Grille** : 10x10
 - **Épisodes** : 1000-2000
-- **Alpha (α)** : 0.1
-- **Gamma (γ)** : 0.9
+- **Alpha (α)** : 0.2 (taux d'apprentissage)
+- **Gamma (γ)** : 0.95 (facteur de discount)
 - **Epsilon initial** : 1.0
 - **Epsilon min** : 0.01
-- **Epsilon decay** : 0.995
+- **Epsilon decay** : 0.998
 
 ## 📊 Résultats attendus
 
 Après ~1000 épisodes, l'agent devrait :
-- Manger en moyenne 3-5 pommes par partie
+
+- Manger en moyenne 5-10 pommes par partie
 - Éviter efficacement les obstacles
+- Se diriger activement vers les pommes
 - Développer des stratégies de déplacement intelligentes
 
 ## 🛠️ Technologies utilisées
