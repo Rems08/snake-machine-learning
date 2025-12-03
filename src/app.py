@@ -243,7 +243,7 @@ def main():
         with col1:
             st.subheader("Paramètres de l'environnement")
             grid_size = st.slider("Taille de la grille", 5, 20, 10)
-            max_steps = st.slider("Nombre max de pas par épisode", 100, 500, 200, step=50)
+            max_steps = st.slider("Nombre max de pas par épisode", 100, 10000, 200, step=50)
             seed = st.number_input("Graine aléatoire (seed)", 0, 9999, 42, step=1)
         
         with col2:
